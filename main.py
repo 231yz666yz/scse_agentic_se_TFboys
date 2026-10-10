@@ -40,8 +40,6 @@ def ensure_directories():
     os.makedirs(GENERATED_DIR, exist_ok=True)
 
 
-## Setup logging: everything is recorded in trace.log.
-
 logging.basicConfig(
     filename=TRACE_LOG_PATH,
     level=logging.INFO,
@@ -86,8 +84,6 @@ def run_generated_tests():
 
 ## Write a main function to run the entire pipeline.
 ## Then run each agent in sequence, save their outputs to files, and log events.
-## Logging events should include the name of the agent and the action taken,
-## such as "Analyst Agent created requirements.json".
 
 def run_pipeline():
     logger.info("=== Pipeline started ===")

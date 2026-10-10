@@ -3,13 +3,9 @@ from ollama import chat
 
 MODEL = "qwen3:8b"
 
-## Create a system prompt for the Reviewer Agent that instructs it to analyze the IR-SIM Benchmark report
-## and output a JSON object with specific keys.
-## The JSON object it outputs must follow a strict schema and contain keys
-## "issue", "likely_cause", "recommendation", "safety_passed", "goal_completion_passed",
-## "efficiency_passed", and "needs_revision".
-## The Reviewer Agent should validate the output to ensure it adheres to the schema and that
-## "safety_passed", "goal_completion_passed", "efficiency_passed", and "needs_revision" are booleans.
+## Create a system prompt for the Reviewer Agent that instructs it to analyze the IR-SIM Benchmark report and output a JSON object with specific keys.
+## The JSON object it outputs must follow a strict schema and contain keys "issue", "likely_cause", "recommendation", "safety_passed", "goal_completion_passed", "efficiency_passed", and "needs_revision".
+## The Reviewer Agent should validate the output to ensure it adheres to the schema and that w"safety_passed", "goal_completion_passed", "efficiency_passed", and "needs_revision" are booleans.
 
 REQUIRED_KEYS = {"issue", "likely_cause", "recommendation",
                  "safety_passed", "goal_completion_passed", "efficiency_passed", "needs_revision"}
@@ -52,9 +48,7 @@ Respond with ONLY a valid JSON object, no markdown, no code fences, no explanati
 
 
 ## Create a function to validate the output of the Reviewer Agent for the benchmark report.
-## It should check that the output is a JSON object with the required keys and that
-## "safety_passed", "goal_completion_passed", "efficiency_passed", and "needs_revision" are booleans,
-## and the rest of the keys are strings.
+## It should check that the output is a JSON object with the required keys and that "safety_passed", "goal_completion_passed", "efficiency_passed", and "needs_revision" are booleans, and the rest of the keys are strings.
 ## If the output does not meet these criteria, raise a ValueError.
 
 def validate_benchmark_review(result):
@@ -82,19 +76,15 @@ def validate_benchmark_review(result):
 
 
 ## Create a function to build a deterministic review from the benchmark report.
-## This function analyzes the benchmark report and determines the values for
-## "safety_passed", "goal_completion_passed", "efficiency_passed", and "needs_revision"
-## based on the measured benchmark fields.
-## It returns a dictionary with the keys "issue", "likely_cause", "recommendation",
-## "safety_passed", "goal_completion_passed", "efficiency_passed", and "needs_revision".
+## This function analyzes the benchmark report and determines the values for "safety_passed", "goal_completion_passed", "efficiency_passed", and "needs_revision" based on the measured benchmark fields.
+## It returns a dictionary with the keys "issue", "likely_cause", "recommendation", "safety_passed", "goal_completion_passed", "efficiency_passed", and "needs_revision".
 ## If the benchmark report does not contain the required fields, default values will be used.
 ## If safety_passed is false, the issue will be described as "Unsafe benchmark behavior detected".
-##   Safety is measured as any world having collision_or_done true while reached_goal is false.
+## Safety is measured as any world having collision_or_done true while reached_goal is false.
 ## If goal_completion_passed is false, the issue will be described as "Goal completion failure".
-##   Goal completion is measured as success_rate being less than 1.0.
+## Goal completion is measured as success_rate being less than 1.0.
 ## If efficiency_passed is false, the issue will be described as "Successful but inefficient navigation".
-##   Efficiency is measured as inefficient_success_worlds being greater than 0
-##   or efficiency_rate being less than 1.0.
+## Efficiency is measured as inefficient_success_worlds being greater than 0 or efficiency_rate being less than 1.0.
 
 def build_deterministic_review(benchmark_report):
     if not isinstance(benchmark_report, dict):
@@ -104,7 +94,6 @@ def build_deterministic_review(benchmark_report):
     if not isinstance(results, list):
         results = []
 
-    # Safety: any world colliding (or terminating abnormally) without reaching the goal.
     unsafe_worlds = [
         r for r in results
         if isinstance(r, dict)
@@ -113,13 +102,11 @@ def build_deterministic_review(benchmark_report):
     ]
     safety_passed = len(unsafe_worlds) == 0
 
-    # Goal completion: success_rate must be 1.0.
     success_rate = benchmark_report.get("success_rate")
     if not isinstance(success_rate, (int, float)):
         success_rate = 0.0
     goal_completion_passed = success_rate >= 1.0
 
-    # Efficiency: no successful-but-slow worlds and efficiency_rate at 1.0.
     inefficient_success_worlds = benchmark_report.get("inefficient_success_worlds")
     if not isinstance(inefficient_success_worlds, int):
         inefficient_success_worlds = 0
@@ -191,11 +178,8 @@ def build_deterministic_review(benchmark_report):
 
 
 ## Create a function to run the Reviewer Agent for the benchmark report.
-## It should take in the benchmark report, build a deterministic review,
-## send both to the Reviewer Agent, and return the validated output.
-## The deterministic review is used to ensure that the pass/fail booleans in the output
-## are based on the measured benchmark results, even if the LLM phrases the issue,
-## likely cause, and recommendation.
+## It should take in the benchmark report, build a deterministic review, send both to the Reviewer Agent, and return the validated output.
+## The deterministic review is used to ensure that the pass/fail booleans in the output are based on the measured benchmark results, even if the LLM phrases the issue, likely cause, and recommendation.
 
 def run_benchmark_reviewer(benchmark_report):
     deterministic_review = build_deterministic_review(benchmark_report)
@@ -216,7 +200,6 @@ def run_benchmark_reviewer(benchmark_report):
 
     raw_output = response["message"]["content"].strip()
 
-    # Strip markdown fences if present
     if raw_output.startswith("```"):
         raw_output = raw_output.split("```", 2)[1]
         if raw_output.startswith("json"):
@@ -230,7 +213,6 @@ def run_benchmark_reviewer(benchmark_report):
 
     validate_benchmark_review(review)
 
-    # Enforce deterministic booleans so the LLM cannot alter measured results.
     for key in BOOLEAN_KEYS:
         review[key] = deterministic_review[key]
 

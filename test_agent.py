@@ -3,11 +3,10 @@ from ollama import chat
 
 MODEL = "qwen3:8b"
 
-### Create a system prompt that instructs the Test Agent to generate pytest-style tests for the decide_next_move function,
-# based on the requirements and plan provided.
-# The prompt should specify the expected input structure and required test coverage,
+### Create a system prompt that instructs the Test Agent to generate pytest-style tests for the decide_next_move function, 
+# based on the requirements and plan provided. 
+# The prompt should specify the expected input structure and required test coverage, 
 # while also enforcing constraints on the output format.
-
 SYSTEM_PROMPT = """You are a Test Agent in a multi-agent system. Your role is to generate comprehensive pytest-style tests for the `decide_next_move` function.
 
 ## Your Task
@@ -32,24 +31,26 @@ FORWARD, LEFT, RIGHT, STOP
 
 ## Test Coverage Requirements
 The expected behavior derived from the brief is: STOP only when front, left AND right
-are ALL blocked; when the front is blocked but a side is clear, turn to the clear side
-(RIGHT preferred, then LEFT); otherwise prefer moving toward the goal; never turn into
-a blocked direction. Your tests MUST cover ALL of the following scenarios:
+are ALL blocked; when the front is blocked but a side is clear, turn to a clear side,
+preferring the side where the goal lies (default LEFT when the goal is ahead or not
+sensed); otherwise prefer moving toward the goal; never turn into a blocked direction.
+Your tests MUST cover ALL of the following scenarios:
 1. Goal ahead, all clear -> FORWARD
 2. Goal on left, all clear -> LEFT
 3. Goal on right, all clear -> RIGHT
 4. No goal sensed, all clear -> FORWARD (default)
-5. Front blocked, right clear -> RIGHT (evade, never freeze)
+5. Front blocked, sides clear -> LEFT (default evade side, never freeze)
 6. Front and left blocked, right clear -> RIGHT
 7. Front and right blocked, left clear -> LEFT
 8. All three directions blocked -> STOP (only STOP case)
-9. Goal ahead, front blocked -> RIGHT (evasion dominates goal direction)
+9. Goal ahead, front blocked -> LEFT (evasion dominates goal direction)
 10. Goal ahead, front clear, side blocked -> FORWARD
 11. Goal on left, left blocked -> RIGHT (never turn into blocked)
 12. Goal on right, right blocked -> LEFT
-13. Goal on left, front blocked -> RIGHT
-14. Both sides blocked, front clear -> FORWARD
-15. The function must always return one of FORWARD, LEFT, RIGHT, STOP
+13. Goal on left, front blocked -> LEFT (evade toward the goal side)
+14. Goal on right, front blocked -> RIGHT (evade toward the goal side)
+15. Both sides blocked, front clear -> FORWARD
+16. The function must always return one of FORWARD, LEFT, RIGHT, STOP
 
 ## Output Format
 Respond with ONLY a Python file. No markdown fences, no explanation.
@@ -63,22 +64,15 @@ The test file must:
 7. Include a test that checks the function handles missing keys gracefully
 """
 
-
-## Write a function to validate the generated test code.
-# It should check that the code is a non-empty string, does not contain markdown fences,
-# Also check that the test code includes all the necessary keywords like the import statements and test assertions.
-
 def validate_test_code(code):
     if not isinstance(code, str):
         raise ValueError(f"Invalid type: expected str, got {type(code).__name__}")
     if not code.strip():
         raise ValueError("Test code must not be empty")
 
-    # Reject markdown fences
     if code.strip().startswith("```"):
         raise ValueError("Test code must not be wrapped in markdown fences")
 
-    # Check for required keywords
     required_keywords = [
         "import",
         "decide_next_move",
@@ -89,18 +83,12 @@ def validate_test_code(code):
         if kw not in code:
             raise ValueError(f"Test code must contain '{kw}'")
 
-    # Verify it's valid Python
     try:
         compile(code, filename="<test_code>", mode="exec")
     except SyntaxError as e:
         raise ValueError(f"Test code is not valid Python: {e}")
 
     return True
-
-
-## Write a function to run the Test Agent.
-# It should take in requirements and a plan, send them to the Test Agent.
-# The function must return the generated test code after validation.
 
 def run_test_agent(requirements, plan):
     user_content = json.dumps({
@@ -119,7 +107,6 @@ def run_test_agent(requirements, plan):
 
     raw_output = response["message"]["content"].strip()
 
-    # Strip markdown fences if present
     if raw_output.startswith("```"):
         parts = raw_output.split("```")
         if len(parts) >= 2:

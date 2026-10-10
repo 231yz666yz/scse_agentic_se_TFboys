@@ -1,6 +1,6 @@
 {
-  "total_scenarios": 20,
-  "passed_scenarios": 20,
+  "total_scenarios": 21,
+  "passed_scenarios": 21,
   "failed_scenarios": 0,
   "success_rate": 1.0,
   "results": [
@@ -61,7 +61,7 @@
       "passed": true
     },
     {
-      "scenario": "front blocked, right clear -> evade RIGHT",
+      "scenario": "front blocked, right clear -> default evade LEFT",
       "state": {
         "goal_ahead": false,
         "goal_on_left": false,
@@ -70,8 +70,8 @@
         "left_blocked": false,
         "right_blocked": false
       },
-      "expected": "RIGHT",
-      "actual": "RIGHT",
+      "expected": "LEFT",
+      "actual": "LEFT",
       "passed": true
     },
     {
@@ -117,7 +117,7 @@
       "passed": true
     },
     {
-      "scenario": "front blocked dominates goal ahead -> evade RIGHT",
+      "scenario": "front blocked dominates goal ahead -> default evade LEFT",
       "state": {
         "goal_ahead": true,
         "goal_on_left": false,
@@ -126,8 +126,8 @@
         "left_blocked": false,
         "right_blocked": false
       },
-      "expected": "RIGHT",
-      "actual": "RIGHT",
+      "expected": "LEFT",
+      "actual": "LEFT",
       "passed": true
     },
     {
@@ -142,6 +142,20 @@
       },
       "expected": "RIGHT",
       "actual": "RIGHT",
+      "passed": true
+    },
+    {
+      "scenario": "front and right blocked, left clear, goal ahead -> LEFT",
+      "state": {
+        "goal_ahead": true,
+        "goal_on_left": false,
+        "goal_on_right": false,
+        "front_blocked": true,
+        "left_blocked": false,
+        "right_blocked": true
+      },
+      "expected": "LEFT",
+      "actual": "LEFT",
       "passed": true
     },
     {
@@ -243,7 +257,7 @@
       "passed": true
     },
     {
-      "scenario": "front blocked with goal on left -> evade RIGHT (right clear)",
+      "scenario": "front blocked with goal on left -> evade LEFT toward the goal side",
       "state": {
         "goal_ahead": false,
         "goal_on_left": true,
@@ -252,12 +266,12 @@
         "left_blocked": false,
         "right_blocked": false
       },
-      "expected": "RIGHT",
-      "actual": "RIGHT",
+      "expected": "LEFT",
+      "actual": "LEFT",
       "passed": true
     },
     {
-      "scenario": "front blocked with goal on right -> RIGHT toward the clear side",
+      "scenario": "front blocked with goal on right -> evade RIGHT toward the goal side",
       "state": {
         "goal_ahead": false,
         "goal_on_left": false,

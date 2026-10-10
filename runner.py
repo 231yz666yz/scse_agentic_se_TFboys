@@ -3,12 +3,9 @@ import json
 import os
 
 ## Create a function to run the simulation of the navigation logic.
-## It should define a set of scenarios with different states (e.g., front_blocked, left_blocked, right_blocked),
-## expected outputs (e.g., FORWARD, LEFT, RIGHT, STOP), and then run the decide_next_move function on each scenario.
-## The function should collect the results, including whether the actual output matches the expected output,
-## and return a report summarizing the results.
-## The report must include the total number of scenarios, the number of passed and failed scenarios,
-## and a success rate, which is the number of passed scenarios divided by the total number of scenarios.
+## It should define a set of scenarios with different states (e.g., front_blocked, left_blocked, right_blocked), expected outputs (e.g., FORWARD, LEFT, RIGHT, STOP), and then run the decide_next_move function on each scenario.
+## The function should collect the results, including whether the actual output matches the expected output, and return a report summarizing the results.
+## The report must include the total number of scenarios, the number of passed and failed scenarios, and a success rate, which is the number of passed scenarios divided by the total number of scenarios.
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 NAV_LOGIC_PATH = os.path.join(PROJECT_DIR, "generated", "navigation_logic.py")
@@ -36,38 +33,24 @@ def make_state(
     }
 
 
-## Every combination of goal direction x blocked directions that can occur,
-## with the expected action derived from the brief:
-##   "never move into a blocked direction" and "stop only when there is no
-##   safe direction available". So when the front is blocked but a side is
-##   clear, the robot must TURN to the clear side (RIGHT preferred, then LEFT),
-##   never freeze; STOP is reserved for the case where all three directions
-##   are blocked. Priority order (first match wins):
-##     1. front+left+right blocked          -> STOP
-##     2. front blocked, right clear        -> RIGHT (evade)
-##     3. front blocked, left clear         -> LEFT  (evade)
-##     4. goal_ahead (front clear)          -> FORWARD
-##     5. goal_on_left, left clear          -> LEFT
-##     6. goal_on_right, right clear        -> RIGHT
-##     7. left_blocked, right clear         -> RIGHT (turn away)
-##     8. right_blocked, left clear         -> LEFT  (turn away)
-##     9. otherwise (front clear)           -> FORWARD
 SCENARIOS = [
     (make_state(goal_ahead=True), "FORWARD", "goal ahead, all clear"),
     (make_state(goal_on_left=True), "LEFT", "goal on left, all clear"),
     (make_state(goal_on_right=True), "RIGHT", "goal on right, all clear"),
     (make_state(), "FORWARD", "no goal sensed, all clear -> default FORWARD"),
 
-    (make_state(front_blocked=True), "RIGHT", "front blocked, right clear -> evade RIGHT"),
+    (make_state(front_blocked=True), "LEFT", "front blocked, right clear -> default evade LEFT"),
     (make_state(front_blocked=True, left_blocked=True), "RIGHT", "front and left blocked, right clear -> RIGHT"),
     (make_state(front_blocked=True, right_blocked=True), "LEFT", "front and right blocked, left clear -> LEFT"),
     (make_state(front_blocked=True, left_blocked=True, right_blocked=True), "STOP",
      "all directions blocked, no safe direction -> STOP"),
 
-    (make_state(goal_ahead=True, front_blocked=True), "RIGHT",
-     "front blocked dominates goal ahead -> evade RIGHT"),
+    (make_state(goal_ahead=True, front_blocked=True), "LEFT",
+     "front blocked dominates goal ahead -> default evade LEFT"),
     (make_state(goal_ahead=True, front_blocked=True, left_blocked=True), "RIGHT",
      "front and left blocked, right clear -> RIGHT"),
+    (make_state(goal_ahead=True, front_blocked=True, right_blocked=True), "LEFT",
+     "front and right blocked, left clear, goal ahead -> LEFT"),
     (make_state(goal_ahead=True, left_blocked=True), "FORWARD", "goal ahead, front clear; left block ignored"),
     (make_state(goal_ahead=True, right_blocked=True), "FORWARD", "goal ahead, front clear; right block ignored"),
     (make_state(goal_ahead=True, left_blocked=True, right_blocked=True), "FORWARD",
@@ -80,10 +63,10 @@ SCENARIOS = [
     (make_state(goal_on_right=True, right_blocked=True), "LEFT",
      "goal on right but blocked -> evade LEFT"),
 
-    (make_state(goal_on_left=True, front_blocked=True), "RIGHT",
-     "front blocked with goal on left -> evade RIGHT (right clear)"),
+    (make_state(goal_on_left=True, front_blocked=True), "LEFT",
+     "front blocked with goal on left -> evade LEFT toward the goal side"),
     (make_state(goal_on_right=True, front_blocked=True), "RIGHT",
-     "front blocked with goal on right -> RIGHT toward the clear side"),
+     "front blocked with goal on right -> evade RIGHT toward the goal side"),
     (make_state(goal_on_left=True, left_blocked=True, right_blocked=True), "FORWARD",
      "goal on left but both sides blocked, front clear -> FORWARD"),
 ]

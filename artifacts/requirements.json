@@ -1,5 +1,5 @@
 {
-  "goal": "reach the goal",
+  "goal": "navigate toward the goal",
   "allowed_actions": [
     "FORWARD",
     "LEFT",

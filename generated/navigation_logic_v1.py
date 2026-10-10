@@ -6,9 +6,9 @@ class Action:
 
 def decide_next_move(state):
     if state["front_blocked"]:
-        return Action.STOP
+        return Action.RIGHT
     if state["goal_ahead"]:
-        return Action.FORWARD
+        return Action.STOP
     if state["goal_on_left"] and not state["left_blocked"]:
         return Action.LEFT
     if state["goal_on_right"] and not state["right_blocked"]:

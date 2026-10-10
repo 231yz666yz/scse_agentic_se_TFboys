@@ -1,4 +1,8 @@
-## The logic is fairly similar to the Analyst and Planner agents
+## Keep the original code, but update it as follows:
+## Create a new function like run_developer_revision()
+# This function will receive the original navigation code, the review notes, the benchmark report, the requirements and the plan. 
+# Based on all of the above, this function will ask the LLM to generate a new navigation logic and then save that as a new file
+
 import json
 import os
 from ollama import chat
@@ -98,14 +102,21 @@ The `state` dictionary uses these six boolean keys:
 
 ## Required behavior (EXACT priority order, first matching rule wins)
 1. If front_blocked AND left_blocked AND right_blocked -> STOP. (no safe direction at all)
-2. If front_blocked AND NOT right_blocked -> RIGHT. (front is blocked, right side is clear -> evade RIGHT)
-3. If front_blocked AND NOT left_blocked -> LEFT. (front and right are blocked, left is clear -> evade LEFT)
-4. If goal_ahead -> FORWARD.
-5. If goal_on_left AND NOT left_blocked -> LEFT.
-6. If goal_on_right AND NOT right_blocked -> RIGHT.
-7. If left_blocked AND NOT right_blocked -> RIGHT.
-8. If right_blocked AND NOT left_blocked -> LEFT.
-9. Otherwise -> FORWARD.
+2. If front_blocked AND goal_on_left AND NOT left_blocked -> LEFT. (evade toward the goal side)
+3. If front_blocked AND goal_on_right AND NOT right_blocked -> RIGHT. (evade toward the goal side)
+4. If front_blocked AND NOT left_blocked -> LEFT. (default evade side is LEFT)
+5. If front_blocked AND NOT right_blocked -> RIGHT. (left blocked, right clear)
+6. If goal_ahead -> FORWARD.
+7. If goal_on_left AND NOT left_blocked -> LEFT.
+8. If goal_on_right AND NOT right_blocked -> RIGHT.
+9. If left_blocked AND NOT right_blocked -> RIGHT.
+10. If right_blocked AND NOT left_blocked -> LEFT.
+11. Otherwise -> FORWARD.
+
+## Why evade toward the goal side
+Turning toward the goal's side when the front is blocked routes the robot around
+obstacles on the goal's side, which lets it pass diagonal obstacle staircases.
+A fixed evade side (always RIGHT) traps the robot against diagonal obstacle walls.
 
 ## CRITICAL semantics for STOP (most common revision mistake)
 Do NOT return STOP merely because the front is blocked. STOP is ONLY correct when
