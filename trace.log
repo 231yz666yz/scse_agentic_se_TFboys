@@ -1,0 +1,42 @@
+2026-10-10 17:54:20,047 [INFO] === Pipeline started ===
+2026-10-10 17:54:20,048 [INFO] Orchestrator loaded brief.txt (543 characters)
+2026-10-10 17:54:20,048 [INFO] Running Analyst Agent...
+2026-10-10 17:55:21,304 [INFO] HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2026-10-10 17:55:21,305 [INFO] Analyst Agent created requirements.json
+2026-10-10 17:55:21,305 [INFO] Running Planner Agent...
+2026-10-10 17:55:24,520 [INFO] HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2026-10-10 17:55:24,522 [INFO] Planner Agent created plan.json
+2026-10-10 17:55:24,522 [INFO] Running Developer Agent...
+2026-10-10 17:55:30,535 [INFO] HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2026-10-10 17:55:30,536 [INFO] Developer Agent created generated/navigation_logic.py
+2026-10-10 17:55:30,536 [INFO] Running Test Agent...
+2026-10-10 17:55:57,000 [INFO] HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2026-10-10 17:55:57,002 [INFO] Test Agent created generated/test_navigation_logic_generated.py
+2026-10-10 17:55:57,600 [INFO] Test Agent generated tests finished with return code 1
+2026-10-10 17:55:57,600 [INFO] pytest: 
+2026-10-10 17:55:57,600 [INFO] pytest: generated\test_navigation_logic_generated.py:32: AttributeError
+2026-10-10 17:55:57,600 [INFO] pytest: =========================== short test summary info ===========================
+2026-10-10 17:55:57,600 [INFO] pytest: FAILED generated/test_navigation_logic_generated.py::test_decide_next_move - AttributeError: module 'navigation_logic' has no attribute 'dec'
+2026-10-10 17:55:57,600 [INFO] pytest: 1 failed in 0.07s
+2026-10-10 17:55:57,600 [INFO] Running Simulation Runner...
+2026-10-10 17:55:57,601 [INFO] Simulation Runner created simulation_report.json (13/20 scenarios passed)
+2026-10-10 17:55:57,602 [INFO] Running Reviewer Agent...
+2026-10-10 17:56:02,422 [INFO] HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2026-10-10 17:56:02,423 [INFO] Reviewer Agent created simulation_review.json (needs_revision=True)
+2026-10-10 17:56:02,423 [INFO] Running IR-SIM benchmark (this runs all four worlds)...
+2026-10-10 17:56:39,434 [INFO] IR-SIM benchmark created artifacts/irsim_benchmark_report.json
+2026-10-10 17:56:39,434 [INFO] Running Benchmark Reviewer Agent...
+2026-10-10 17:56:44,607 [INFO] HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2026-10-10 17:56:44,608 [INFO] Benchmark Reviewer Agent created benchmark_review.json (needs_revision=True)
+2026-10-10 17:56:44,608 [INFO] Revision required -> running Developer Revision...
+2026-10-10 17:56:52,276 [INFO] HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2026-10-10 17:56:52,278 [INFO] Developer Agent created generated/navigation_logic_v2.py (original kept as generated/navigation_logic_v1.py)
+2026-10-10 17:56:52,278 [INFO] Re-running Simulation Runner on revised logic...
+2026-10-10 17:56:52,280 [INFO] Simulation Runner re-created simulation_report.json (20/20 scenarios passed)
+2026-10-10 17:56:55,126 [INFO] HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2026-10-10 17:56:55,127 [INFO] Reviewer Agent re-created simulation_review.json (needs_revision=False)
+2026-10-10 17:56:55,127 [INFO] Re-running IR-SIM benchmark on revised logic...
+2026-10-10 17:58:01,193 [INFO] IR-SIM benchmark re-created artifacts/irsim_benchmark_report.json
+2026-10-10 17:58:06,314 [INFO] HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2026-10-10 17:58:06,315 [INFO] Benchmark Reviewer Agent re-created benchmark_review.json (needs_revision=True)
+2026-10-10 17:58:06,315 [INFO] === Pipeline finished successfully ===
