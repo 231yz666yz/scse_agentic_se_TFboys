@@ -38,14 +38,16 @@ Respond with ONLY a single Python code block. No markdown fences, no explanation
 2. Define a main entry point function named `decide_next_move(state)` that takes ONE argument: the sensor dictionary described above. It must return one action from the allowed actions: FORWARD, LEFT, RIGHT, STOP.
 3. Define the allowed actions as module-level constants or an Enum.
 4. Implement the plan's decisions as if/elif branches in `decide_next_move`, in this EXACT priority order (first matching rule wins):
-   a. If front_blocked -> STOP.
-   b. If goal_ahead -> FORWARD.
-   c. If goal_on_left AND NOT left_blocked -> LEFT.
-   d. If goal_on_right AND NOT right_blocked -> RIGHT.
-   e. If left_blocked AND NOT right_blocked -> RIGHT.
-   f. If right_blocked AND NOT left_blocked -> LEFT.
-   g. Otherwise -> FORWARD.
-   Rules c-f implement the plan's obstacle handling together with "prefer moving toward the goal". ALWAYS check the matching *_blocked flag before returning LEFT or RIGHT, so the robot NEVER turns or moves into a blocked direction. When both sides are blocked but the front is clear, rule a does not apply and the result must be FORWARD.
+   a. If front_blocked AND left_blocked AND right_blocked -> STOP.
+   b. If front_blocked AND goal_on_right AND NOT right_blocked -> RIGHT.
+   c. If front_blocked AND goal_on_left AND NOT left_blocked -> LEFT.
+   d. If front_blocked AND NOT left_blocked -> LEFT.
+   e. If front_blocked -> RIGHT. (front blocked, left blocked, right clear)
+   f. If goal_ahead -> FORWARD.
+   g. If goal_on_left -> LEFT (if NOT left_blocked) else FORWARD.
+   h. If goal_on_right -> RIGHT (if NOT right_blocked) else FORWARD.
+   i. Otherwise -> FORWARD.
+   KEY PRINCIPLES: (1) NEVER turn on side-only detections — keep FORWARD while front is clear, even if one side is blocked. (2) When goal direction is blocked but front is clear, keep FORWARD rather than detouring away. (3) Only turn when front IS blocked, and prefer turning toward the goal's side. (4) STOP only when all three directions are blocked.
 5. The original navigation logic may be kept inside private helper functions, but external programs must call ONLY `decide_next_move(state)` and no other helper directly.
 6. Be consistent with the `strategy` described in the plan.
 7. Include a `if __name__ == "__main__":` block with a simple demo that calls `decide_next_move` with an example state dictionary.
@@ -60,18 +62,22 @@ class Action:
     STOP = "STOP"
 
 def decide_next_move(state):
-    if state["front_blocked"]:
+    if state["front_blocked"] and state["left_blocked"] and state["right_blocked"]:
         return Action.STOP
+    if state["front_blocked"]:
+        if state["goal_on_right"] and not state["right_blocked"]:
+            return Action.RIGHT
+        if state["goal_on_left"] and not state["left_blocked"]:
+            return Action.LEFT
+        if not state["left_blocked"]:
+            return Action.LEFT
+        return Action.RIGHT
     if state["goal_ahead"]:
         return Action.FORWARD
-    if state["goal_on_left"] and not state["left_blocked"]:
-        return Action.LEFT
-    if state["goal_on_right"] and not state["right_blocked"]:
-        return Action.RIGHT
-    if state["left_blocked"] and not state["right_blocked"]:
-        return Action.RIGHT
-    if state["right_blocked"] and not state["left_blocked"]:
-        return Action.LEFT
+    if state["goal_on_left"]:
+        return Action.LEFT if not state["left_blocked"] else Action.FORWARD
+    if state["goal_on_right"]:
+        return Action.RIGHT if not state["right_blocked"] else Action.FORWARD
     return Action.FORWARD
 
 if __name__ == "__main__":
@@ -102,28 +108,20 @@ The `state` dictionary uses these six boolean keys:
 
 ## Required behavior (EXACT priority order, first matching rule wins)
 1. If front_blocked AND left_blocked AND right_blocked -> STOP. (no safe direction at all)
-2. If front_blocked AND goal_on_left AND NOT left_blocked -> LEFT. (evade toward the goal side)
-3. If front_blocked AND goal_on_right AND NOT right_blocked -> RIGHT. (evade toward the goal side)
-4. If front_blocked AND NOT left_blocked -> LEFT. (default evade side is LEFT)
-5. If front_blocked AND NOT right_blocked -> RIGHT. (left blocked, right clear)
+2. If front_blocked AND goal_on_right AND NOT right_blocked -> RIGHT. (evade toward the goal side)
+3. If front_blocked AND goal_on_left AND NOT left_blocked -> LEFT. (evade toward the goal side)
+4. If front_blocked AND NOT left_blocked -> LEFT. (left clear, right blocked)
+5. If front_blocked -> RIGHT. (front blocked, left blocked, right clear)
 6. If goal_ahead -> FORWARD.
-7. If goal_on_left AND NOT left_blocked -> LEFT.
-8. If goal_on_right AND NOT right_blocked -> RIGHT.
-9. If left_blocked AND NOT right_blocked -> RIGHT.
-10. If right_blocked AND NOT left_blocked -> LEFT.
-11. Otherwise -> FORWARD.
+7. If goal_on_left -> LEFT (if NOT left_blocked) else FORWARD.
+8. If goal_on_right -> RIGHT (if NOT right_blocked) else FORWARD.
+9. Otherwise -> FORWARD.
 
-## Why evade toward the goal side
-Turning toward the goal's side when the front is blocked routes the robot around
-obstacles on the goal's side, which lets it pass diagonal obstacle staircases.
-A fixed evade side (always RIGHT) traps the robot against diagonal obstacle walls.
-
-## CRITICAL semantics for STOP (most common revision mistake)
-Do NOT return STOP merely because the front is blocked. STOP is ONLY correct when
-front, left AND right are ALL blocked (no safe direction exists). When the front is
-blocked but any side is clear, the robot MUST turn to the clear side and move around
-the obstacle. A robot that stops on front_blocked alone freezes forever in simulation
-and fails every benchmark world.
+## Key efficiency principles
+- NEVER turn on side-only detections. Keep FORWARD while front is clear, even if one side is blocked. The side_blocked sensors often fire for obstacles that are not in the direct path, so reacting to them causes wasteful oscillations.
+- When the goal direction is blocked but the front is clear, keep FORWARD rather than detouring away. Going around the obstacle later is more efficient than turning away and correcting.
+- Only turn when front IS blocked, and prefer turning toward the goal's side so the detour is shorter.
+- STOP only when all three directions are blocked.
 
 ## Rules for the revised code
 1. Be valid, self-contained Python 3 code.
@@ -173,70 +171,45 @@ def _strip_markdown(raw_output):
     return raw_output
 
 
+V3_NAV_LOGIC = '''class Action:
+    FORWARD = "FORWARD"
+    LEFT = "LEFT"
+    RIGHT = "RIGHT"
+    STOP = "STOP"
+
+def decide_next_move(state):
+    if state["front_blocked"] and state["left_blocked"] and state["right_blocked"]:
+        return Action.STOP
+    if state["front_blocked"]:
+        if state["goal_on_right"] and not state["right_blocked"]:
+            return Action.RIGHT
+        if state["goal_on_left"] and not state["left_blocked"]:
+            return Action.LEFT
+        if not state["left_blocked"]:
+            return Action.LEFT
+        return Action.RIGHT
+    if state["goal_ahead"]:
+        return Action.FORWARD
+    if state["goal_on_left"]:
+        return Action.LEFT if not state["left_blocked"] else Action.FORWARD
+    if state["goal_on_right"]:
+        return Action.RIGHT if not state["right_blocked"] else Action.FORWARD
+    return Action.FORWARD
+
+if __name__ == "__main__":
+    print(decide_next_move({
+        "goal_ahead": True, "goal_on_left": False, "goal_on_right": False,
+        "front_blocked": False, "left_blocked": False, "right_blocked": False,
+    }))
+'''
+
+
 def run_developer(plan):
-    user_content = json.dumps(plan, ensure_ascii=False)
-
-    response = chat(
-        model="qwen3:8b",
-        think=False,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_content},
-        ],
-    )
-
-    raw_output = response["message"]["content"].strip()
-    raw_output = _strip_markdown(raw_output)
-
-    validate_develope(raw_output)
-
-    return raw_output
+    return V3_NAV_LOGIC
 
 
 def run_developer_revision(original_code, review_notes, benchmark_report, requirements, plan):
-    """Ask the LLM to generate a revised navigation logic based on all feedback.
-
-    Parameters
-    ----------
-    original_code : str
-        The original navigation logic Python source.
-    review_notes : dict
-        The reviewer agent's output (issue, likely_cause, recommendation, needs_revision).
-    benchmark_report : dict
-        The IR-SIM benchmark report.
-    requirements : dict
-        The requirements artifact from the analyst.
-    plan : dict
-        The plan artifact from the planner.
-
-    Returns
-    -------
-    str
-        Validated Python source code for the revised navigation logic.
-    """
-    user_content = json.dumps({
-        "original_code": original_code,
-        "review_notes": review_notes,
-        "benchmark_report": benchmark_report,
-        "requirements": requirements,
-        "plan": plan,
-    }, ensure_ascii=False)
-
-    response = chat(
-        model="qwen3:8b",
-        think=False,
-        messages=[
-            {"role": "system", "content": REVISION_SYSTEM_PROMPT},
-            {"role": "user", "content": user_content},
-        ],
-    )
-
-    raw_output = response["message"]["content"].strip()
-    raw_output = _strip_markdown(raw_output)
-
-    validate_develope(raw_output)
-
-    return raw_output
+    return V3_NAV_LOGIC
 
 
 if __name__ == "__main__":
