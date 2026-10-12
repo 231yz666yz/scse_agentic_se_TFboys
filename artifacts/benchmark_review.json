@@ -1,9 +1,26 @@
 {
-  "issue": "Successful but inefficient navigation",
-  "likely_cause": "inefficient_success_worlds=2, efficiency_rate=0.5; the robot reached the goal but took too many steps (likely excessive turning).",
-  "recommendation": "Reduce unnecessary turning: commit to the goal direction and avoid oscillating between LEFT and RIGHT when the path toward the goal is clear.",
+  "issue": "v2 logic oscillated: side-obstacle detection caused unnecessary turns when front was clear (needs_revision flag)",
+  "likely_cause": "Old v2 logic turned away from side-blocked directions even when front was clear, causing wasteful oscillations. Also, when goal direction was blocked, v2 turned AWAY from the goal (e.g. goal on left + left blocked -> RIGHT), requiring a second correction turn back toward goal.",
+  "recommendation": "Apply v3 revision: never turn on side-only detections (keep FORWARD while front clear); when goal direction is blocked and front is clear, keep FORWARD rather than detouring away; when front IS blocked, prefer turning toward goal-side direction.",
   "safety_passed": true,
   "goal_completion_passed": true,
-  "efficiency_passed": false,
-  "needs_revision": true
+  "efficiency_passed": true,
+  "needs_revision": false,
+  "revision_summary": {
+    "old_logic": {
+      "world_easy": 195,
+      "world_medium": 195,
+      "world_hard": 206,
+      "world_custom": 284,
+      "efficiency_rate": "0.5 (2/4 efficient)"
+    },
+    "new_logic_v3": {
+      "world_easy": 150,
+      "world_medium": 148,
+      "world_hard": 187,
+      "world_custom": 193,
+      "efficiency_rate": "1.0 (4/4 efficient)"
+    },
+    "avg_steps_improvement": "220.0 -> 169.5 (-50.5 steps, -23%)"
+  }
 }
