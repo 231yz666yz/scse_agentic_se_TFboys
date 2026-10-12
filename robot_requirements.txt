@@ -1,0 +1,44 @@
+**Software Requirements Specification for Robot Navigation System**
+
+---
+
+### **Functional Requirements**
+
+1. **Input Handling**  
+   a. The system must receive and process input indicating whether the path ahead, left, and right is blocked.  
+   b. The system must receive and process input indicating the goal's direction relative to the robot (ahead, left, or right).  
+
+2. **Navigation Logic**  
+   a. **Priority Rule**: The robot must prioritize moving towards the goal's direction if that path is unblocked.  
+      - If the goal is ahead and the path ahead is unblocked, the robot must move forward.  
+      - If the goal is left and the path left is unblocked, the robot must move left.  
+      - If the goal is right and the path right is unblocked, the robot must move right.  
+   b. **Fallback Rule**: If the goal's direction is blocked, the robot must evaluate other available directions (left or right, depending on the goal's position) in a priority order.  
+      - For example:  
+        - If the goal is ahead but blocked, the robot must check left and right paths.  
+        - If the goal is left but blocked, the robot must check ahead and right paths.  
+        - If the goal is right but blocked, the robot must check ahead and left paths.  
+   c. **Stop Condition**: If all paths (ahead, left, right) are blocked, the robot must stop.  
+
+3. **Decision-Making Constraints**  
+   a. The robot must not move into blocked paths.  
+   b. The robot must choose any available direction that is not blocked, ensuring it does not move into blocked paths.  
+   c. The order of checking other directions (e.g., left vs. right) is not specified in the requirements and may be implemented based on system design priorities.  
+
+4. **Environmental Adaptability**  
+   a. The navigation logic must handle multiple simulated environments, ensuring robustness and adaptability to varying path configurations.  
+
+---
+
+### **Non-Functional Requirements**  
+- **Robustness**: The system must handle edge cases, such as all paths blocked or ambiguous goal directions, without crashing.  
+- **Determinism**: The navigation logic must produce consistent decisions under identical input conditions.  
+- **Scalability**: The system must support expansion to additional navigation modes or environments in the future.  
+
+---
+
+### **Example Scenario**  
+- **Input**: Goal is ahead, but the path ahead is blocked. Left path is unblocked, right path is blocked.  
+- **Output**: The robot must move left (since it is the only unblocked direction).  
+
+This specification ensures the robot adheres to the priority of moving toward the goal while avoiding blocked paths, with fallback strategies for blocked goal directions.
