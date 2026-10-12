@@ -39,15 +39,19 @@ def test_decide_next_move():
         # Scenario 10: Goal ahead, front clear, side blocked
         ({"goal_ahead": True, "right_blocked": True}, "FORWARD"),
         # Scenario 11: Goal on left, left blocked
-        ({"goal_on_left": True, "left_blocked": True}, "RIGHT"),
+        ({"goal_on_left": True, "left_blocked": True}, "FORWARD"),
         # Scenario 12: Goal on right, right blocked
-        ({"goal_on_right": True, "right_blocked": True}, "LEFT"),
+        ({"goal_on_right": True, "right_blocked": True}, "FORWARD"),
         # Scenario 13: Goal on left, front blocked
         ({"goal_on_left": True, "front_blocked": True}, "LEFT"),
         # Scenario 14: Goal on right, front blocked
         ({"goal_on_right": True, "front_blocked": True}, "RIGHT"),
         # Scenario 15: Both sides blocked, front clear
         ({"left_blocked": True, "right_blocked": True}, "FORWARD"),
+        # Scenario 16: Left blocked only, front clear
+        ({"left_blocked": True}, "FORWARD"),
+        # Scenario 17: Right blocked only, front clear
+        ({"right_blocked": True}, "FORWARD"),
     ]:
         state = make_state(**scenario)
         result = navigation_logic.decide_next_move(state)

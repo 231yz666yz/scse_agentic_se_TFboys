@@ -5,8 +5,7 @@ MODEL = "qwen3:8b"
 
 ### Create a system prompt that instructs the Test Agent to generate pytest-style tests for the decide_next_move function, 
 # based on the requirements and plan provided. 
-# The prompt should specify the expected input structure and required test coverage, 
-# while also enforcing constraints on the output format.
+# The prompt should specify the expected input structure and required test coverage, while also enforcing constraints on the output format.
 SYSTEM_PROMPT = """You are a Test Agent in a multi-agent system. Your role is to generate comprehensive pytest-style tests for the `decide_next_move` function.
 
 ## Your Task
