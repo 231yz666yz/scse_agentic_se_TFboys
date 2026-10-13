@@ -156,6 +156,34 @@ def validate_develope(data):
     if "__main__" not in data:
         raise ValueError("Code must include an `if __name__ == \"__main__\":` block")
 
+    ns = {}
+    exec(data, ns)
+    fn = ns.get("decide_next_move")
+    if not callable(fn):
+        raise ValueError("decide_next_move must be callable")
+
+    behavior_tests = [
+        ({"goal_ahead": True, "goal_on_left": False, "goal_on_right": False,
+          "front_blocked": True, "left_blocked": False, "right_blocked": False}, "LEFT",
+         "front_blocked with sides clear must detour, not STOP"),
+        ({"goal_ahead": True, "goal_on_left": False, "goal_on_right": False,
+          "front_blocked": False, "left_blocked": True, "right_blocked": False}, "FORWARD",
+         "left_blocked only with front clear must keep FORWARD"),
+        ({"goal_ahead": False, "goal_on_left": False, "goal_on_right": False,
+          "front_blocked": True, "left_blocked": True, "right_blocked": True}, "STOP",
+         "all blocked must STOP"),
+        ({"goal_ahead": False, "goal_on_left": True, "goal_on_right": False,
+          "front_blocked": True, "left_blocked": False, "right_blocked": False}, "LEFT",
+         "front_blocked with goal on left must detour LEFT"),
+    ]
+    for state, expected, label in behavior_tests:
+        try:
+            result = fn(state)
+        except Exception as e:
+            raise ValueError(f"Behavior test failed ({label}): {e}")
+        if result != expected:
+            raise ValueError(f"Behavior test failed ({label}): expected {expected}, got {result}")
+
     return True
 
 
@@ -205,11 +233,55 @@ if __name__ == "__main__":
 
 
 def run_developer(plan):
-    return V3_NAV_LOGIC
+    user_content = json.dumps(plan, ensure_ascii=False)
+
+    response = chat(
+        model="qwen3:8b",
+        think=False,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_content},
+        ],
+    )
+
+    raw_output = response["message"]["content"].strip()
+    raw_output = _strip_markdown(raw_output)
+
+    try:
+        validate_develope(raw_output)
+        return raw_output
+    except ValueError:
+        print("[developer_agent] LLM output failed validation, falling back to V3_NAV_LOGIC")
+        return V3_NAV_LOGIC
 
 
 def run_developer_revision(original_code, review_notes, benchmark_report, requirements, plan):
-    return V3_NAV_LOGIC
+    user_content = json.dumps({
+        "original_code": original_code,
+        "review_notes": review_notes,
+        "benchmark_report": benchmark_report,
+        "requirements": requirements,
+        "plan": plan,
+    }, ensure_ascii=False)
+
+    response = chat(
+        model="qwen3:8b",
+        think=False,
+        messages=[
+            {"role": "system", "content": REVISION_SYSTEM_PROMPT},
+            {"role": "user", "content": user_content},
+        ],
+    )
+
+    raw_output = response["message"]["content"].strip()
+    raw_output = _strip_markdown(raw_output)
+
+    try:
+        validate_develope(raw_output)
+        return raw_output
+    except ValueError:
+        print("[developer_agent_revision] LLM output failed validation, falling back to V3_NAV_LOGIC")
+        return V3_NAV_LOGIC
 
 
 if __name__ == "__main__":
