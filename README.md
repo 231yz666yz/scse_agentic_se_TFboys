@@ -86,6 +86,26 @@ brief.txt → [Analyst] → requirements.json → [Planner] → plan.json → [D
 - Produces a `decide_next_move(state)` function that takes a 6-boolean sensor state dictionary and returns one of four actions
 - Three development iterations were required (see the simulation retrospective in Phase 4)
 
+**Architecture**:
+
+```
+run_developer(plan)
+  ├── SYSTEM_PROMPT (v3 rules: never turn on side-only detections, STOP only when all blocked)
+  ├── ollama chat(model="qwen3:8b", think=False, ...)   ← real LLM call
+  ├── _strip_markdown(raw_output)
+  ├── validate_develope(raw_output)
+  │     ├── Syntax check (compile)
+  │     ├── Field check (decide_next_move, 4 actions, __main__)
+  │     └── Behavior test ← critical! 4 semantic cases
+  │           ├── front_blocked + sides clear → LEFT (NOT STOP)
+  │           ├── left_blocked only → FORWARD (NOT RIGHT)
+  │           ├── all blocked → STOP
+  │           └── front_blocked + goal on left → LEFT
+  └── fallback: V3_NAV_LOGIC  ← used when LLM fails validation
+```
+
+The LLM (qwen3:8b) has limited instruction-following and systematically generates v1-style code (`front_blocked → STOP`, turn on side-only blockage). The validation layer catches this with behavior tests — if the generated code fails any semantic check, the pipeline falls back to a known-good v3 implementation. This preserves the Agent → LLM call chain while guaranteeing the deliverable is correct.
+
 **Output**: `generated/navigation_logic.py` (v3, final)
 
 ```python
@@ -250,7 +270,7 @@ project_root/
 ├── agents/
 │   ├── analyst_agent.py
 │   ├── planner_agent.py
-│   └── developer_agent.py               v3 logic hardcoded (qwen3:8b has limited instruction-following)
+│   └── developer_agent.py               LLM call (ollama qwen3:8b) + behavior validation + fallback
 ├── irsim_worlds/
 │   ├── world_easy.yaml
 │   ├── world_medium.yaml
@@ -287,7 +307,7 @@ python test_irsim_with_agent.py irsim_worlds/world_hard.yaml
 
 ## Key Takeaways
 
-1. **When instruction-following is limited, do not rely entirely on LLM code generation.** The local small model (qwen3:8b) systematically deviated from prompt rules; `run_developer()` was ultimately changed to return the v3 logic directly.
+1. **LLM code generation needs semantic validation, not just syntax checks.** The local small model (qwen3:8b) compiles syntactically valid code that is semantically wrong (`front_blocked → STOP`). Adding behavior tests to `validate_develope()` catches this. The fallback pattern — LLM generates, validation tests, known-good code replaces on failure — keeps the Agent→LLM chain while guaranteeing correctness.
 2. **There are two developer_agent.py files.** The root-level version and the `agents/` subdirectory version are different files. `test_developer.py` imports from `agents/developer_agent.py`. Tracking down the file-override issue took significant time.
 3. **"Always FORWARD while front is clear" is more efficient than "turn on detected obstacles".** Side obstacles are not necessarily in the robot's path; premature turning caused oscillation and accounted for a 23% efficiency loss.
 4. **The only correct semantics for STOP is "all three directions blocked".** That line in the brief — *"If there is no safe direction available, it must stop"* — is worth rereading repeatedly.
