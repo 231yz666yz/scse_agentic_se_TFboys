@@ -1,5 +1,5 @@
 {
-    "strategy": "The robot will navigate forward towards the goal while avoiding obstacles and stopping safely when the goal is reached.",
+    "strategy": "The robot will move forward toward the goal while avoiding obstacles and stopping safely when necessary.",
     "decisions": [
         "If the goal is reached, then STOP",
         "If an obstacle is detected ahead, then STOP",
@@ -7,5 +7,5 @@
         "If an obstacle is detected on the right, then LEFT",
         "If no obstacles are detected, then FORWARD"
     ],
-    "stop_point": "When the goal is reached or when an obstacle is detected ahead"
+    "stop_point": "When the goal is reached or when an unavoidable obstacle is detected"
 }
