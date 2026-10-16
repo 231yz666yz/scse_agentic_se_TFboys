@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from planner_agent import run_planner
+from agents.planner_agent import run_planner
 
 
 ## Create a function/logic that reads the requirements from requirements.json,

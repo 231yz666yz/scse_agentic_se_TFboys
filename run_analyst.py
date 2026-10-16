@@ -1,7 +1,7 @@
 import json
 import os
 
-from analyst_agent import run_analyst
+from agents.analyst_agent import run_analyst
 
 BRIEF_PATH = "brief.txt"
 OUTPUT_DIR = "artifacts"

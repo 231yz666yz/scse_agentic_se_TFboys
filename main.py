@@ -9,7 +9,7 @@ import sys
 
 from agents.analyst_agent import run_analyst
 from agents.planner_agent import run_planner
-from developer_agent import run_developer, run_developer_revision
+from agents.developer_agent import run_developer, run_developer_revision
 from test_agent import run_test_agent
 import runner
 from reviewer_agent import run_reviewer

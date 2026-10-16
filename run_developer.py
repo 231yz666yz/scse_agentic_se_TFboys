@@ -1,7 +1,7 @@
 ## the logic is similar to the run_planner and run_analyst files
 import json
 from pathlib import Path
-from developer_agent import run_developer
+from agents.developer_agent import run_developer
 
 
 def main():

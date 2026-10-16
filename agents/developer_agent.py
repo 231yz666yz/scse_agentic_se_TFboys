@@ -1,5 +1,10 @@
-## The logic is fairly similar to the Analyst and Planner agents
+## Keep the original code, but update it as follows:
+## Create a new function like run_developer_revision()
+# This function will receive the original navigation code, the review notes, the benchmark report, the requirements and the plan. 
+# Based on all of the above, this function will ask the LLM to generate a new navigation logic and then save that as a new file
+
 import json
+import os
 from ollama import chat
 
 SYSTEM_PROMPT = """
@@ -33,10 +38,10 @@ Respond with ONLY a single Python code block. No markdown fences, no explanation
 2. Define a main entry point function named `decide_next_move(state)` that takes ONE argument: the sensor dictionary described above. It must return one action from the allowed actions: FORWARD, LEFT, RIGHT, STOP.
 3. Define the allowed actions as module-level constants or an Enum.
 4. Implement the plan's decisions as if/elif branches in `decide_next_move`, in this EXACT priority order (first matching rule wins):
-   a. If front_blocked AND left_blocked AND right_blocked -> STOP. (only stop when no safe direction at all)
-   b. If front_blocked AND goal_on_right AND NOT right_blocked -> RIGHT. (detour toward goal side)
-   c. If front_blocked AND goal_on_left AND NOT left_blocked -> LEFT. (detour toward goal side)
-   d. If front_blocked AND NOT left_blocked -> LEFT. (left clear, right blocked)
+   a. If front_blocked AND left_blocked AND right_blocked -> STOP.
+   b. If front_blocked AND goal_on_right AND NOT right_blocked -> RIGHT.
+   c. If front_blocked AND goal_on_left AND NOT left_blocked -> LEFT.
+   d. If front_blocked AND NOT left_blocked -> LEFT.
    e. If front_blocked -> RIGHT. (front blocked, left blocked, right clear)
    f. If goal_ahead -> FORWARD.
    g. If goal_on_left -> LEFT (if NOT left_blocked) else FORWARD.
@@ -82,6 +87,53 @@ if __name__ == "__main__":
     }))
 """
 
+REVISION_SYSTEM_PROMPT = """
+You are a Developer Revision Agent in a multi-agent system. Your role is to revise an existing navigation logic module based on review notes and benchmark results.
+
+## Your Task
+You will receive:
+1. The original navigation code (a Python module defining `decide_next_move(state)`)
+2. Review notes from the simulation reviewer (issues found, likely causes, recommendations)
+3. The benchmark report (success rate, efficiency, collision data)
+4. The original requirements (goal, allowed actions, safe_stop, avoid_obstacles)
+5. The original plan (strategy, decisions, stop_point)
+
+Based on ALL of the above, generate an IMPROVED version of the navigation code that fixes the issues identified in the review and benchmark while still adhering to the original requirements and plan.
+
+## Sensor key semantics (CRITICAL)
+The `state` dictionary uses these six boolean keys:
+- "goal_ahead": the goal lies ahead (NOT arrival)
+- "goal_on_left" / "goal_on_right": goal lies to the LEFT / RIGHT
+- "front_blocked" / "left_blocked" / "right_blocked": obstacle blocks FORWARD / LEFT / RIGHT
+
+## Required behavior (EXACT priority order, first matching rule wins)
+1. If front_blocked AND left_blocked AND right_blocked -> STOP. (no safe direction at all)
+2. If front_blocked AND goal_on_right AND NOT right_blocked -> RIGHT. (evade toward the goal side)
+3. If front_blocked AND goal_on_left AND NOT left_blocked -> LEFT. (evade toward the goal side)
+4. If front_blocked AND NOT left_blocked -> LEFT. (left clear, right blocked)
+5. If front_blocked -> RIGHT. (front blocked, left blocked, right clear)
+6. If goal_ahead -> FORWARD.
+7. If goal_on_left -> LEFT (if NOT left_blocked) else FORWARD.
+8. If goal_on_right -> RIGHT (if NOT right_blocked) else FORWARD.
+9. Otherwise -> FORWARD.
+
+## Key efficiency principles
+- NEVER turn on side-only detections. Keep FORWARD while front is clear, even if one side is blocked. The side_blocked sensors often fire for obstacles that are not in the direct path, so reacting to them causes wasteful oscillations.
+- When the goal direction is blocked but the front is clear, keep FORWARD rather than detouring away. Going around the obstacle later is more efficient than turning away and correcting.
+- Only turn when front IS blocked, and prefer turning toward the goal's side so the detour is shorter.
+- STOP only when all three directions are blocked.
+
+## Rules for the revised code
+1. Be valid, self-contained Python 3 code.
+2. Define `decide_next_move(state)` returning one of: FORWARD, LEFT, RIGHT, STOP.
+3. NEVER move or turn into a blocked direction.
+4. Implement the EXACT priority table above as if/elif branches, in order.
+5. Include `if __name__ == "__main__":` block.
+6. Do NOT import non-standard libraries.
+7. Output ONLY the Python code, no markdown fences, no explanation.
+"""
+
+
 def validate_develope(data):
     if not isinstance(data, str):
         raise ValueError(f"Invalid type: expected str (Python code), got {type(data).__name__}")
@@ -123,6 +175,18 @@ def validate_develope(data):
         ({"goal_ahead": False, "goal_on_left": True, "goal_on_right": False,
           "front_blocked": True, "left_blocked": False, "right_blocked": False}, "LEFT",
          "front_blocked with goal on left must detour LEFT"),
+        ({"goal_ahead": False, "goal_on_left": False, "goal_on_right": False,
+          "front_blocked": True, "left_blocked": False, "right_blocked": False}, "LEFT",
+         "no goal visible, front blocked, sides clear must detour LEFT, not STOP"),
+        ({"goal_ahead": False, "goal_on_left": False, "goal_on_right": False,
+          "front_blocked": False, "left_blocked": True, "right_blocked": False}, "FORWARD",
+         "no goal visible, left blocked only, front clear must keep FORWARD"),
+        ({"goal_ahead": False, "goal_on_left": False, "goal_on_right": False,
+          "front_blocked": False, "left_blocked": False, "right_blocked": True}, "FORWARD",
+         "no goal visible, right blocked only, front clear must keep FORWARD"),
+        ({"goal_ahead": False, "goal_on_left": False, "goal_on_right": False,
+          "front_blocked": False, "left_blocked": True, "right_blocked": True}, "FORWARD",
+         "no goal visible, both sides blocked, front clear must keep FORWARD"),
     ]
     for state, expected, label in behavior_tests:
         try:
@@ -133,6 +197,19 @@ def validate_develope(data):
             raise ValueError(f"Behavior test failed ({label}): expected {expected}, got {result}")
 
     return True
+
+
+def _strip_markdown(raw_output):
+    """Remove markdown code fences if present."""
+    if raw_output.startswith("```"):
+        parts = raw_output.split("```")
+        if len(parts) >= 2:
+            raw_output = parts[1]
+            if raw_output.startswith("python"):
+                raw_output = raw_output[len("python"):]
+        raw_output = raw_output.strip()
+    return raw_output
+
 
 V3_NAV_LOGIC = '''class Action:
     FORWARD = "FORWARD"
@@ -166,15 +243,6 @@ if __name__ == "__main__":
     }))
 '''
 
-def _strip_markdown(raw_output):
-    if raw_output.startswith("```"):
-        parts = raw_output.split("```")
-        if len(parts) >= 2:
-            raw_output = parts[1]
-            if raw_output.startswith("python"):
-                raw_output = raw_output[len("python"):]
-        raw_output = raw_output.strip()
-    return raw_output
 
 def run_developer(plan):
     user_content = json.dumps(plan, ensure_ascii=False)
@@ -197,3 +265,45 @@ def run_developer(plan):
     except ValueError:
         print("[developer_agent] LLM output failed validation, falling back to V3_NAV_LOGIC")
         return V3_NAV_LOGIC
+
+
+def run_developer_revision(original_code, review_notes, benchmark_report, requirements, plan):
+    user_content = json.dumps({
+        "original_code": original_code,
+        "review_notes": review_notes,
+        "benchmark_report": benchmark_report,
+        "requirements": requirements,
+        "plan": plan,
+    }, ensure_ascii=False)
+
+    response = chat(
+        model="qwen3:8b",
+        think=False,
+        messages=[
+            {"role": "system", "content": REVISION_SYSTEM_PROMPT},
+            {"role": "user", "content": user_content},
+        ],
+    )
+
+    raw_output = response["message"]["content"].strip()
+    raw_output = _strip_markdown(raw_output)
+
+    try:
+        validate_develope(raw_output)
+        return raw_output
+    except ValueError:
+        print("[developer_agent_revision] LLM output failed validation, falling back to V3_NAV_LOGIC")
+        return V3_NAV_LOGIC
+
+
+if __name__ == "__main__":
+    with open("artifacts/plan.json", "r", encoding="utf-8") as f:
+        plan = json.load(f)
+
+    code = run_developer(plan)
+
+    os.makedirs("generated", exist_ok=True)
+    with open("generated/navigation_logic.py", "w", encoding="utf-8") as f:
+        f.write(code)
+
+    print("Navigation logic saved to generated/navigation_logic.py")
