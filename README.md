@@ -27,7 +27,7 @@ brief.txt → [Analyst] → requirements.json → [Planner] → plan.json → [D
 **Input**: `brief.txt` — a 19-line natural-language description
 > Develop navigation logic for a mobile robot... It must never move into a blocked direction... If there is no safe direction available, it must stop.
 
-**Agent**: `agents/analyst_agent.py` (the root-level file of the same name is a copy)
+**Agent**: `agents/analyst_agent.py`
 
 **What it does**:
 - Parses the unstructured brief into a structured JSON requirements document
@@ -96,15 +96,22 @@ run_developer(plan)
   ├── validate_develope(raw_output)
   │     ├── Syntax check (compile)
   │     ├── Field check (decide_next_move, 4 actions, __main__)
-  │     └── Behavior test ← critical! 4 semantic cases
-  │           ├── front_blocked + sides clear → LEFT (NOT STOP)
-  │           ├── left_blocked only → FORWARD (NOT RIGHT)
-  │           ├── all blocked → STOP
-  │           └── front_blocked + goal on left → LEFT
+  │     └── Behavior test ← critical! 8 semantic cases, covering BOTH goal-visible and no-goal-visible states
+        goal visible:
+          ├── front_blocked + sides clear → LEFT (NOT STOP)
+          ├── left_blocked only → FORWARD (NOT RIGHT)
+          ├── all blocked → STOP
+          └── front_blocked + goal on left → LEFT
+        no goal visible (guards a separate code branch):
+          ├── front_blocked + sides clear → LEFT (NOT STOP)
+          ├── left / right / both sides blocked, front clear → FORWARD
+          └── all blocked → STOP
   └── fallback: V3_NAV_LOGIC  ← used when LLM fails validation
 ```
 
-The LLM (qwen3:8b) has limited instruction-following and systematically generates v1-style code (`front_blocked → STOP`, turn on side-only blockage). The validation layer catches this with behavior tests — if the generated code fails any semantic check, the pipeline falls back to a known-good v3 implementation. This preserves the Agent → LLM call chain while guaranteeing the deliverable is correct.
+`run_developer()` and `run_developer_revision()` (the review-driven revision path) live in the same module.
+
+The LLM (qwen3:8b) has limited instruction-following and generates v1-style code (`front_blocked → STOP`, turn on side-only blockage). It even once produced a hybrid: correct v3 branches when a goal was visible but a leftover v1 `else` branch when no goal was visible. The validation layer catches this with behavior tests over both branches — if the generated code fails any semantic check, the pipeline falls back to a known-good v3 implementation. This preserves the Agent → LLM call chain while guaranteeing the deliverable is correct.
 
 **Output**: `generated/navigation_logic.py` (v3, final)
 
@@ -270,7 +277,7 @@ project_root/
 ├── agents/
 │   ├── analyst_agent.py
 │   ├── planner_agent.py
-│   └── developer_agent.py               LLM call (ollama qwen3:8b) + behavior validation + fallback
+│   └── developer_agent.py               Single source: LLM call + behavior validation + fallback + revision
 ├── irsim_worlds/
 │   ├── world_easy.yaml
 │   ├── world_medium.yaml
@@ -308,6 +315,6 @@ python test_irsim_with_agent.py irsim_worlds/world_hard.yaml
 ## Key Takeaways
 
 1. **LLM code generation needs semantic validation, not just syntax checks.** The local small model (qwen3:8b) compiles syntactically valid code that is semantically wrong (`front_blocked → STOP`). Adding behavior tests to `validate_develope()` catches this. The fallback pattern — LLM generates, validation tests, known-good code replaces on failure — keeps the Agent→LLM chain while guaranteeing correctness.
-2. **There are two developer_agent.py files.** The root-level version and the `agents/` subdirectory version are different files. `test_developer.py` imports from `agents/developer_agent.py`. Tracking down the file-override issue took significant time.
+2. **Keep one canonical copy of every agent module.** For a while there were two copies of each agent (root level and `agents/`), and the two `developer_agent.py` files silently diverged — the root copy had `run_developer_revision`, the `agents/` copy did not, while the tests imported one path and `main.py` another. They were consolidated into a single `agents/` package, all imports updated, and the root duplicates deleted.
 3. **"Always FORWARD while front is clear" is more efficient than "turn on detected obstacles".** Side obstacles are not necessarily in the robot's path; premature turning caused oscillation and accounted for a 23% efficiency loss.
 4. **The only correct semantics for STOP is "all three directions blocked".** That line in the brief — *"If there is no safe direction available, it must stop"* — is worth rereading repeatedly.
